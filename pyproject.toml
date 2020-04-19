@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mousebender"
-version = "1.0.0"
+version = "1.0.1"
 description = "A package for implementing various Python packaging standards"
 authors = ["Brett Cannon <brett@snarky.ca>"]
 maintainers = ["Derek Keeler <derek@suchcool.ca>"]
@@ -12,6 +12,7 @@ readme = "README.rst"
 classifiers = ["Topic :: Software Development :: Libraries :: Python Modules"]
 
 [tool.poetry.dependencies]
+# The `<4` restriction is because of coverage.py.
 python = ">=3.8,<4"
 packaging = "^20.3"
 
