@@ -1,6 +1,5 @@
 """Tests for mousebender.simple."""
-import importlib.resources
-
+import importlib_resources
 import packaging.version
 import pytest
 
@@ -49,7 +48,7 @@ class TestRepoIndexParsing:
         ],
     )
     def test_full_parse(self, name, count, expected_item):
-        index_html = importlib.resources.read_text(simple_data, f"index.{name}.html")
+        index_html = importlib_resources.read_text(simple_data, f"index.{name}.html")
         index = simple.parse_repo_index(index_html)
         assert len(index) == count
         key, value = expected_item
@@ -178,7 +177,7 @@ class TestParseArchiveLinks:
         ],
     )
     def test_full_parse(self, module_name, count, expected_archive_link):
-        html = importlib.resources.read_text(
+        html = importlib_resources.read_text(
             simple_data, f"archive_links.{module_name}.html"
         )
         archive_links = simple.parse_archive_links(html)
@@ -288,3 +287,29 @@ class TestParseArchiveLinks:
         archive_links = simple.parse_archive_links(html)
         assert len(archive_links) == 1
         assert archive_links[0].gpg_sig == expected_gpg_sig
+
+    @pytest.mark.parametrize(
+        "html,expected",
+        [
+            (
+                '<a href="spam-1.2.3-py3.none.any.whl" data-yanked>spam-1.2.3-py3.none.any.whl</a>',
+                (True, ""),
+            ),
+            (
+                '<a href="spam-1.2.3-py3.none.any.whl" data-yanked="oops!">spam-1.2.3-py3.none.any.whl</a>',
+                (True, "oops!"),
+            ),
+            (
+                '<a href="spam-1.2.3-py3.none.any.whl" data-yanked="">spam-1.2.3-py3.none.any.whl</a>',
+                (True, ""),
+            ),
+            (
+                '<a href="spam-1.2.3-py3.none.any.whl">spam-1.2.3-py3.none.any.whl</a>',
+                (False, ""),
+            ),
+        ],
+    )
+    def test_yanked(self, html, expected):
+        archive_links = simple.parse_archive_links(html)
+        assert len(archive_links) == 1
+        assert archive_links[0].yanked == expected
