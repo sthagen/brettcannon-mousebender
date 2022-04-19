@@ -2,6 +2,7 @@
 import warnings
 
 import importlib_resources
+import packaging.specifiers
 import packaging.version
 import pytest
 
@@ -50,7 +51,8 @@ class TestRepoIndexParsing:
         ],
     )
     def test_full_parse(self, name, count, expected_item):
-        index_html = importlib_resources.read_text(simple_data, f"index.{name}.html")
+        index_file = importlib_resources.files(simple_data) / f"index.{name}.html"
+        index_html = index_file.read_text(encoding="utf-8")
         index = simple.parse_repo_index(index_html)
         assert len(index) == count
         key, value = expected_item
@@ -103,6 +105,63 @@ class TestRepoIndexParsing:
         assert index["django-node"] == "django-node/"
 
 
+class TestArchiveLink:
+
+    """Tests for mousebender.simple.ArchiveLink."""
+
+    @pytest.mark.parametrize(
+        "archive_link",
+        [
+            simple.ArchiveLink(filename="B", url="A/B"),
+            simple.ArchiveLink(
+                filename="B",
+                url="A/B",
+                requires_python=packaging.specifiers.SpecifierSet(">=3.6"),
+            ),
+            simple.ArchiveLink(
+                filename="B",
+                url="A/B",
+                hash_=("sha256", "ABCDEF"),
+            ),
+            simple.ArchiveLink(
+                filename="B",
+                url="A/B",
+                gpg_sig=True,
+            ),
+            simple.ArchiveLink(filename="B", url="A/B", yanked=""),
+            simple.ArchiveLink(filename="B", url="A/B", yanked="oops!"),
+            simple.ArchiveLink(filename="B", url="A/B", metadata=("", "")),
+            simple.ArchiveLink(filename="B", url="A/B", metadata=("sha256", "ABCDEF")),
+            simple.ArchiveLink(
+                filename="B",
+                url="A/B",
+                requires_python=packaging.specifiers.SpecifierSet(">=3.6"),
+                hash_=("sha256", "ABCDEF"),
+                gpg_sig=True,
+                yanked="oops!",
+                metadata=("sha512", "GHIJKL"),
+            ),
+        ],
+    )
+    def test_str(self, archive_link):
+        """Make sure __str__ roundtrips."""
+        html = str(archive_link)
+        roundtrip = simple.parse_archive_links(html)
+        assert len(roundtrip) == 1
+        print(html)
+        print(roundtrip[0])
+        assert archive_link == roundtrip[0]
+
+    def test_str_escaping(self):
+        """data-requires-python must have an escaped value."""
+        archive_link = simple.ArchiveLink(
+            filename="B",
+            url="A/B",
+            requires_python=packaging.specifiers.SpecifierSet(">=3.6"),
+        )
+        assert "gt;=3.6" in str(archive_link)
+
+
 class TestParseArchiveLinks:
 
     """Tests for mousebender.simple.parse_archive_links()."""
@@ -114,74 +173,85 @@ class TestParseArchiveLinks:
                 "numpy",
                 1402,
                 simple.ArchiveLink(
-                    "numpy-1.13.0rc1-cp36-none-win_amd64.whl",
-                    "https://files.pythonhosted.org/packages/5c/2e/5c0eee0635035a7e0646734e2b9388e17a97f6f2087e15141a218b6f2b6d/numpy-1.13.0rc1-cp36-none-win_amd64.whl",
-                    packaging.specifiers.SpecifierSet(
+                    filename="numpy-1.13.0rc1-cp36-none-win_amd64.whl",
+                    url="https://files.pythonhosted.org/packages/5c/2e/5c0eee0635035a7e0646734e2b9388e17a97f6f2087e15141a218b6f2b6d/numpy-1.13.0rc1-cp36-none-win_amd64.whl",
+                    requires_python=packaging.specifiers.SpecifierSet(
                         ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*"
                     ),
-                    (
+                    hash_=(
                         "sha256",
                         "8e8e1ccf025c8b6a821f75086a364a68d9e1877519a35bf8facec9e5120836f4",
                     ),
-                    None,
+                    gpg_sig=None,
+                    yanked=None,
+                    metadata=None,
                 ),
             ),
             (
                 "pulpcore-client",
                 370,
                 simple.ArchiveLink(
-                    "pulpcore_client-3.1.0.dev1578940535-py3-none-any.whl",
-                    "https://files.pythonhosted.org/packages/ca/7e/e14e41dc4bc60208f597f346d57755636e882be7509179c4e7c11f2c60a9/pulpcore_client-3.1.0.dev1578940535-py3-none-any.whl",
-                    packaging.specifiers.SpecifierSet(),
-                    (
+                    filename="pulpcore_client-3.1.0.dev1578940535-py3-none-any.whl",
+                    url="https://files.pythonhosted.org/packages/ca/7e/e14e41dc4bc60208f597f346d57755636e882be7509179c4e7c11f2c60a9/pulpcore_client-3.1.0.dev1578940535-py3-none-any.whl",
+                    requires_python=packaging.specifiers.SpecifierSet(),
+                    hash_=(
                         "sha256",
                         "83a3759d7b6af33083b0d4893d53615fc045cbad9adde68a8df02e25b1862bc6",
                     ),
-                    None,
+                    gpg_sig=None,
+                    yanked=None,
+                    metadata=None,
                 ),
             ),
             (
                 "pytorch",
                 522,
                 simple.ArchiveLink(
-                    "torchvision-0.5.0+cu100-cp36-cp36m-linux_x86_64.whl",
-                    "cu100/torchvision-0.5.0%2Bcu100-cp36-cp36m-linux_x86_64.whl",
-                    packaging.specifiers.SpecifierSet(),
-                    None,
-                    None,
+                    filename="torchvision-0.5.0+cu100-cp36-cp36m-linux_x86_64.whl",
+                    url="cu100/torchvision-0.5.0%2Bcu100-cp36-cp36m-linux_x86_64.whl",
+                    requires_python=packaging.specifiers.SpecifierSet(),
+                    hash_=None,
+                    gpg_sig=None,
+                    yanked=None,
+                    metadata=None,
                 ),
             ),
             (
                 "AICoE-tensorflow",
                 15,
                 simple.ArchiveLink(
-                    "tensorflow-2.0.0-cp37-cp37m-linux_x86_64.whl",
-                    "tensorflow-2.0.0-cp37-cp37m-linux_x86_64.whl",
-                    packaging.specifiers.SpecifierSet(),
-                    None,
-                    None,
+                    filename="tensorflow-2.0.0-cp37-cp37m-linux_x86_64.whl",
+                    url="tensorflow-2.0.0-cp37-cp37m-linux_x86_64.whl",
+                    requires_python=packaging.specifiers.SpecifierSet(),
+                    hash_=None,
+                    gpg_sig=None,
+                    yanked=None,
+                    metadata=None,
                 ),
             ),
             (
                 "numpy-piwheels",
                 316,
                 simple.ArchiveLink(
-                    "numpy-1.10.4-cp35-cp35m-linux_armv7l.whl",
-                    "numpy-1.10.4-cp35-cp35m-linux_armv7l.whl",
-                    packaging.specifiers.SpecifierSet(),
-                    (
+                    filename="numpy-1.10.4-cp35-cp35m-linux_armv7l.whl",
+                    url="numpy-1.10.4-cp35-cp35m-linux_armv7l.whl",
+                    requires_python=packaging.specifiers.SpecifierSet(),
+                    hash_=(
                         "sha256",
                         "5768279588a4766adb0211bbaa0f5857be38483c5aafe5d1caecbcd32749966e",
                     ),
-                    None,
+                    gpg_sig=None,
+                    yanked=None,
+                    metadata=None,
                 ),
             ),
         ],
     )
     def test_full_parse(self, module_name, count, expected_archive_link):
-        html = importlib_resources.read_text(
-            simple_data, f"archive_links.{module_name}.html"
+        html_file = (
+            importlib_resources.files(simple_data) / f"archive_links.{module_name}.html"
         )
+        html = html_file.read_text(encoding="utf-8")
         archive_links = simple.parse_archive_links(html)
         assert len(archive_links) == count
         assert expected_archive_link in archive_links
@@ -295,19 +365,19 @@ class TestParseArchiveLinks:
         [
             (
                 '<a href="spam-1.2.3-py3.none.any.whl" data-yanked>spam-1.2.3-py3.none.any.whl</a>',
-                (True, ""),
+                "",
             ),
             (
                 '<a href="spam-1.2.3-py3.none.any.whl" data-yanked="oops!">spam-1.2.3-py3.none.any.whl</a>',
-                (True, "oops!"),
+                "oops!",
             ),
             (
                 '<a href="spam-1.2.3-py3.none.any.whl" data-yanked="">spam-1.2.3-py3.none.any.whl</a>',
-                (True, ""),
+                "",
             ),
             (
                 '<a href="spam-1.2.3-py3.none.any.whl">spam-1.2.3-py3.none.any.whl</a>',
-                (False, ""),
+                None,
             ),
         ],
     )
@@ -321,6 +391,9 @@ class TestParseArchiveLinks:
     "parser", [simple.parse_repo_index, simple.parse_archive_links]
 )
 class TestPEP629Versioning:
+    # No test for older major versions as that case is currently impossible with
+    # 1.0 as the only possible version.
+
     def _example(self, major, minor):
         return f"""
         <!DOCTYPE html>
@@ -372,5 +445,29 @@ class TestPEP629Versioning:
         # No error.
         parser(html)
 
-    # No test for older major versions as that case is currently impossible with
-    # 1.0 as the only possible version.
+
+class TestPEP658Metadata:
+    def test_default(self):
+        html = '<a href="spam-1.2.3-py3.none.any.whl">spam-1.2.3-py3.none.any.whl</a>'
+        archive_link = simple.parse_archive_links(html)[0]
+        assert archive_link.metadata is None
+
+    @pytest.mark.parametrize(
+        "attribute", ["data-dist-info-metadata", "data-dist-info-metadata=true"]
+    )
+    def test_attribute_only(self, attribute):
+        html = f'<a href="spam-1.2.3-py3.none.any.whl" {attribute} >spam-1.2.3-py3.none.any.whl</a>'
+        archive_link = simple.parse_archive_links(html)[0]
+        assert archive_link.metadata == ("", "")
+
+    @pytest.mark.parametrize(
+        "attribute",
+        [
+            'data-dist-info-metadata="sha256=abcdef"',
+            'data-dist-info-metadata="SHA256=abcdef"',
+        ],
+    )
+    def test_hash(self, attribute):
+        html = f'<a href="spam-1.2.3-py3.none.any.whl" {attribute}>spam-1.2.3-py3.none.any.whl</a>'
+        archive_link = simple.parse_archive_links(html)[0]
+        assert archive_link.metadata == ("sha256", "abcdef")
