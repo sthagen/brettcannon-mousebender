@@ -1,25 +1,68 @@
+"""Developer-related actions.
+
+All sessions prefixed with `check_` are non-destructive.
+
+"""
 import nox
 
 python_versions = ["3.7", "3.8", "3.9", "3.10", "3.11"]
 
 
-def run_tests(session, extras=[]):
-    session.install("-e", ".[test]")
-    session.run("pytest", *extras)
-
-
 @nox.session(python=python_versions)
-def test(session):
-    run_tests(session)
+def test(session, coverage=False):
+    """Run the test suite."""
+    session.install("-e", ".[test]")
+    session.run(
+        "pytest", *(["--cov", "--cov-report", "term-missing"] if coverage else [])
+    )
 
 
 @nox.session(python=python_versions)
 def coverage(session):
-    run_tests(session, ["--cov"])
+    """Run the test suite under coverage."""
+    test(session, coverage=True)
 
 
 @nox.session
-def type_check(session):
+def check_types(session):
+    """Type check."""
     session.install("-e", ".")
     session.install("mypy")
     session.run("mypy", "mousebender")
+
+
+@nox.session
+def format(session, check=False):
+    """Format the code."""
+    for tool in ("black", "isort"):
+        session.install(tool)
+        args = ["--check"] if check else []
+        args.append(".")
+        session.run(tool, *args)
+
+
+@nox.session
+def check_format(session):
+    """Check that the code is properly formatted."""
+    format(session, check=True)
+
+
+@nox.session
+def check_code(session):
+    """Lint the code."""
+    session.install("ruff>=0.0.132")
+    session.run("ruff", "mousebender", "tests")
+
+
+@nox.session
+def docs(session):
+    """Build the documentation."""
+    session.install("-e", ".[doc]")
+    session.run("sphinx-build", "-W", "--keep-going", "docs", "docs/_build")
+
+
+@nox.session
+def build(session):
+    """Build the wheel and sdist."""
+    session.install("flit")
+    session.run("flit", "build")

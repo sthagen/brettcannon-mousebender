@@ -1,6 +1,6 @@
 name: CI
 
-on: pull_request
+on: [pull_request, workflow_dispatch]
 
 jobs:
   lint:
@@ -8,26 +8,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Lint code
         run: |
-          pipx run flake8
+          pipx run nox -s check_code
 
       - name: Check format
         run: |
-          pipx run black --check .
-
-      - name: Check imports
-        uses: isort/isort-action@v1
+          pipx run nox -s check_format
 
       - name: Type check
         run: |
-          pipx run nox -s type_check
+          pipx run nox -s check_types
+
+      - name: Build docs
+        run: |
+          pipx run nox -s docs
 
       - name: Build wheel
         run: |
-          pipx run flit build
+          pipx run nox -s build
 
   tests:
     name: Test Python ${{ matrix.python_version }}
@@ -37,10 +38,10 @@ jobs:
         python_version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python_version }}
           cache: "pip"

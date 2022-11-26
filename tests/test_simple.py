@@ -8,9 +8,6 @@ from .data import simple as simple_data
 
 
 class TestProjectURLConstruction:
-
-    """Tests for mousebender.simple.create_project_url()."""
-
     @pytest.mark.parametrize("base_url", ["/simple/", "/simple"])
     def test_url_joining(self, base_url):
         url = simple.create_project_url(base_url, "hello")
@@ -36,9 +33,6 @@ class TestProjectURLConstruction:
 
 
 class TestRepoIndexParsing:
-
-    """Tests for mousebender.simple.parse_repo_index()."""
-
     @pytest.mark.parametrize(
         "name,count,expected_item",
         [
@@ -75,9 +69,6 @@ class TestRepoIndexParsing:
 
 
 class TestProjectDetailsParsing:
-
-    """Tests for mousebender.simple. from project details HTML."""
-
     @pytest.mark.parametrize(
         "module_name,count,expected_file_details",
         [
@@ -140,7 +131,7 @@ class TestProjectDetailsParsing:
             importlib_resources.files(simple_data) / f"archive_links.{module_name}.html"
         )
         html = html_file.read_text(encoding="utf-8")
-        project_details = simple.from_project_details_html(module_name, html)
+        project_details = simple.from_project_details_html(html, module_name)
         assert len(project_details) == 3
         assert project_details["name"] == module_name
         assert project_details["meta"] == {"api-version": "1.0"}
@@ -161,7 +152,7 @@ class TestProjectDetailsParsing:
         ],
     )
     def test_filename(self, html, expected_filename):
-        project_details = simple.from_project_details_html("honey", html)
+        project_details = simple.from_project_details_html(html, "honey")
         assert len(project_details["files"]) == 1
         assert project_details["files"][0]["filename"] == expected_filename
 
@@ -179,9 +170,14 @@ class TestProjectDetailsParsing:
         ],
     )
     def test_url(self, html, expected_url):
-        project_details = simple.from_project_details_html("cash", html)
+        project_details = simple.from_project_details_html(html, "cash")
         assert len(project_details["files"]) == 1
         assert project_details["files"][0]["url"] == expected_url
+
+    def test_no_href(self):
+        html = "<a>numpy-1.12.1-cp35-none-win_amd64.whl</a><br/>"
+        project_details = simple.from_project_details_html(html, "test_no_href")
+        assert not len(project_details["files"])
 
     @pytest.mark.parametrize(
         "html,expected",
@@ -197,7 +193,7 @@ class TestProjectDetailsParsing:
         ],
     )
     def test_requires_python(self, html, expected):
-        project_details = simple.from_project_details_html("Dave", html)
+        project_details = simple.from_project_details_html(html, "Dave")
         assert len(project_details["files"]) == 1
         if expected is None:
             assert "requires-python" not in project_details["files"][0]
@@ -220,7 +216,7 @@ class TestProjectDetailsParsing:
         ],
     )
     def test_hashes(self, html, expected_hashes):
-        project_details = simple.from_project_details_html("Brett", html)
+        project_details = simple.from_project_details_html(html, "Brett")
         assert len(project_details["files"]) == 1
         assert project_details["files"][0]["hashes"] == expected_hashes
 
@@ -242,7 +238,7 @@ class TestProjectDetailsParsing:
         ],
     )
     def test_gpg_sig(self, html, expected_gpg_sig):
-        details = simple.from_project_details_html("test_gpg_sig", html)
+        details = simple.from_project_details_html(html, "test_gpg_sig")
         assert len(details["files"]) == 1
         assert details["files"][0].get("gpg-sig") == expected_gpg_sig
 
@@ -276,7 +272,7 @@ class TestProjectDetailsParsing:
         ],
     )
     def test_yanked(self, html, expected):
-        details = simple.from_project_details_html("test_yanked", html)
+        details = simple.from_project_details_html(html, "test_yanked")
         assert len(details["files"]) == 1
         assert details["files"][0].get("yanked") == expected
 
@@ -284,7 +280,7 @@ class TestProjectDetailsParsing:
 class TestPEP658Metadata:
     def test_default(self):
         html = '<a href="spam-1.2.3-py3.none.any.whl">spam-1.2.3-py3.none.any.whl</a>'
-        details = simple.from_project_details_html("test_default", html)
+        details = simple.from_project_details_html(html, "test_default")
         assert len(details["files"]) == 1
         # Need to make sure it isn't an empty dict.
         assert "dist-info-metadata" not in details["files"][0]
@@ -294,7 +290,7 @@ class TestPEP658Metadata:
     )
     def test_attribute_only(self, attribute):
         html = f'<a href="spam-1.2.3-py3.none.any.whl" {attribute} >spam-1.2.3-py3.none.any.whl</a>'
-        details = simple.from_project_details_html("test_default", html)
+        details = simple.from_project_details_html(html, "test_default")
         assert len(details["files"]) == 1
         assert details["files"][0]["dist-info-metadata"] is True
 
@@ -307,6 +303,6 @@ class TestPEP658Metadata:
     )
     def test_hash(self, attribute):
         html = f'<a href="spam-1.2.3-py3.none.any.whl" {attribute}>spam-1.2.3-py3.none.any.whl</a>'
-        details = simple.from_project_details_html("test_default", html)
+        details = simple.from_project_details_html(html, "test_default")
         assert len(details["files"]) == 1
         assert details["files"][0]["dist-info-metadata"] == {"sha256": "abcdef"}
